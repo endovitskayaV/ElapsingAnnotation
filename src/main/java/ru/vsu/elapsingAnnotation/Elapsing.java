@@ -10,6 +10,7 @@ import java.lang.annotation.Target;
 public @interface Elapsing {
     enum TimeInterval { MILLISECOND, NANOSECOND }
 
+    long maxElapsed() default Long.MAX_VALUE;
     TimeInterval interval() default TimeInterval.MILLISECOND;
-    String format() default "Elapsed %s";
+    String format() default "%s";
 }
