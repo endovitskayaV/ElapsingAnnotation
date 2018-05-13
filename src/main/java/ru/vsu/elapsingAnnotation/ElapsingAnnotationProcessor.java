@@ -1,8 +1,12 @@
 package ru.vsu.elapsingAnnotation;
 
 import com.google.auto.service.AutoService;
+import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.StatementTree;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.TypeTag;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.model.JavacElements;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.tree.JCTree;
@@ -13,9 +17,13 @@ import com.sun.tools.javac.util.List;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -58,19 +66,29 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 //                    messager.printMessage(Diagnostic.Kind.ERROR, s));
 
 //
-
+//
 //            final Set<? extends Element> classes = roundEnv.getRootElements();
 //
 //
 //            classes.forEach(clazz ->
 //                    clazz.getEnclosedElements().forEach(method -> {
 //                        if (method.getAnnotation(Elapsing.class) != null){
-//                            JCTree classBody =  utils.getTree(clazz);
-//                            classBody.
+//                            JCTree body =  utils.getTree(clazz);
+//                            List<JCStatement> stats = List.nil();
+//                            stats.addAll(((JCMethodDecl) body).body.stats);
+//
+//                            TypeElement list =
+//                                    workingCopy.getElements().getTypeElement("java.util.Map.Entry");
+//                            Types types = workingCopy.getTypes();
+//                            TypeMirror tm = types.getArrayType(types.erasure(list.asType()));
+//                            stats.add(maker.Variable(maker.Modifiers(Collections.<Modifier>emptySet()), "entry", maker.Type(tm), null));
+//
+//                            ((JCMethodDecl) body).body.stats = stats;
 //                        }
+//
 //                            //messager.printMessage(Diagnostic.Kind.ERROR, method.getSimpleName());
 //                    }));
-
+//
 
 
             final Set<? extends Element> methods = roundEnv.getElementsAnnotatedWith(annotation);
