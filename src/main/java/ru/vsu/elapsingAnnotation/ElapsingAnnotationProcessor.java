@@ -17,6 +17,7 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
+import javax.tools.Diagnostic;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -64,7 +65,6 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         }
 
 
-
         JavacElements utils = javacProcessingEnvironment.getElementUtils();
         final Elements elements = javacProcessingEnvironment.getElementUtils();
         final TypeElement annotation = elements.getTypeElement(ANNOTATION_TYPE);
@@ -104,8 +104,6 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 //                            messager.printMessage(Diagnostic.Kind.ERROR,"type"+clDecl.type.toString());
 
 
-
-
 // clDecl.
 //                                     .forEach(jcTree -> messager.printMessage(Diagnostic.Kind.ERROR, jcTree.type.stringValue()));
 //                        }
@@ -138,7 +136,18 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
             final Set<? extends Element> methods = roundEnv.getElementsAnnotatedWith(annotation);
             for (final Element method : methods) {
                 Elapsing elapsingAnnotation = method.getAnnotation(Elapsing.class);
+
                 if (elapsingAnnotation != null) {
+
+
+                    if (elapsingAnnotation.maxElapsed() <= 0) {
+                        messager.printMessage(Diagnostic.Kind.ERROR, "@Elapsed: parameter maxElapsed must be greater than 0");
+                    }
+
+                    if (!elapsingAnnotation.format().contains("%s")) {
+                        messager.printMessage(Diagnostic.Kind.WARNING, "@Elapsed: parameter format should contain '%s' otherwise elapsed time will not be logged");
+                    }
+
                     JCTree methodDeclNode = utils.getTree(method);
                     if (methodDeclNode instanceof JCMethodDecl) {
                         // get method statements
@@ -235,17 +244,18 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
      * @param loggedText text that will be logged
      * @return logging expression, eg Logger.getGlobal().log(level, loggedText));
      */
-    private JCExpressionStatement logElapsed(TreeMaker maker, JavacElements utils, String level, JCExpression loggedText) {
+    private JCExpressionStatement logElapsed(TreeMaker maker, JavacElements utils, String level, JCExpression loggedText, Class loggerClass) {
         //Logger.getGlobal().log(Level.INFO, String.format(FORMAT, ELAPSED_TIME));
         //Logger.getGlobal().log(level, loggedText);
         //Logger.getGlobal().log
-        JCExpression getLoggerExpression = maker.Ident(utils.getName("java"));
-        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("util"));
-        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("logging"));
-        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("Logger"));
-        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("getGlobal"));
-        JCExpression getLogger =
-                maker.Apply(List.nil(), getLoggerExpression, List.nil());
+       // JCExpression getLoggerExpression = maker.Ident(utils.getName(loggerClass.getSimpleName()));
+//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("util"));
+//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("logging"));
+//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("Logger"));
+//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("getGlobal"));
+        JCExpression getLogger = maker.Ident(utils.getName(loggerClass.getSimpleName()));
+//
+               // maker.Apply(List.nil(), getLoggerExpression, List.nil());
         getLogger = maker.Select(getLogger, utils.getName("log"));
 
         //Level.INFO
@@ -275,7 +285,7 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
      * @return block of statements tht logs time
      */
     private JCBlock makeLogBlock(TreeMaker maker, JavacElements utils, Elapsing elapsing, JCVariableDecl timeStartVar, JCVariableDecl timeFinishVar) {
-
+//messager.printMessage(Diagnostic.Kind.ERROR, elapsing.logger().getSimpleName());
         List<JCStatement> statements = List.nil();
 
         //log elapsed time
@@ -292,27 +302,28 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 
         JCExpression format = maker.Apply(List.nil(), formatExpression, formatArgs);
 
-        JCExpressionStatement logElapsedTime = logElapsed(maker, utils, Level.INFO.getName().toUpperCase(), format);
+        JCExpressionStatement logElapsedTime = logElapsed(maker, utils, Level.INFO.getName().toUpperCase(), format, elapsing.logger());
         statements = statements.append(logElapsedTime);
 
-        //log delta elapsed if method elapsed more than said
-        JCExpression condition = maker.Binary(
-                Tag.GT, //greater
-                maker.Binary(Tag.MINUS, makeCurrentTime(maker, utils, elapsing), maker.Ident(timeStartVar.name)),//currTime-startTime=elapsed
-                maker.Literal(elapsing.maxElapsed())); //maxElapsed
+            //log delta elapsed if method elapsed more than said
+            JCExpression condition = maker.Binary(
+                    Tag.GT, //greater
+                    maker.Binary(Tag.MINUS, makeCurrentTime(maker, utils, elapsing), maker.Ident(timeStartVar.name)),//currTime-startTime=elapsed
+                    maker.Literal(elapsing.maxElapsed())); //maxElapsed
 
-        JCStatement ifStatement = maker.If(
-                condition,
-                //then
-                logElapsed(maker, utils, Level.WARNING.getName().toUpperCase(),
-                        //loggedText
-                        maker.Binary(Tag.PLUS,
-                                maker.Binary(Tag.PLUS, maker.Literal("Elapsed "),
-                                        maker.Binary(Tag.MINUS, elapsedTime, maker.Literal(elapsing.maxElapsed()))),
-                                maker.Literal(" " + elapsing.interval().name().toLowerCase() + " more"))),
-                /*else*/ null);
+            JCStatement ifStatement = maker.If(
+                    condition,
+                    //then
+                    logElapsed(maker, utils, Level.WARNING.getName().toUpperCase(),
+                            //loggedText
+                            maker.Binary(Tag.PLUS,
+                                    maker.Binary(Tag.PLUS, maker.Literal("Elapsed "),
+                                            maker.Binary(Tag.MINUS, elapsedTime, maker.Literal(elapsing.maxElapsed()))),
+                                    maker.Literal(" " + elapsing.interval().name().toLowerCase() + "s more")),
+                            elapsing.logger()),
+                    /*else*/ null);
 
-        statements = statements.append(ifStatement);
+            statements = statements.append(ifStatement);
         return maker.Block(0, statements);
     }
 }

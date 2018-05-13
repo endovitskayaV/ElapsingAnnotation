@@ -28,6 +28,14 @@
             <artifactId>auto-service</artifactId>
             <version>1.0-rc2</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.sun</groupId>
+            <artifactId>tools</artifactId>
+            <scope>system</scope>
+            <version>1.8.0</version>
+            <systemPath>${env.JAVA_HOME}/lib/tools.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>

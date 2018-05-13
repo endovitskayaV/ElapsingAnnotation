@@ -15,5 +15,14 @@
     <orderEntry type="library" name="Maven: com.google.auto.service:auto-service:1.0-rc2" level="project" />
     <orderEntry type="library" name="Maven: com.google.auto:auto-common:0.3" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:18.0" level="project" />
+    <orderEntry type="module-library">
+      <library name="Maven: com.sun:tools:1.8.0">
+        <CLASSES>
+          <root url="jar://C:/Program Files/Java/jdk1.8.0_102/lib/tools.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>

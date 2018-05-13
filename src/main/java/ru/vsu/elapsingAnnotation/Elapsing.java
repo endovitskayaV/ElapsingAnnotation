@@ -13,4 +13,5 @@ public @interface Elapsing {
     long maxElapsed() default Long.MAX_VALUE;
     TimeInterval interval() default TimeInterval.MILLISECOND;
     String format() default "%s";
+    Class<? extends ru.vsu.elapsingAnnotation.Logger> logger() default LoggerImpl.class;
 }
