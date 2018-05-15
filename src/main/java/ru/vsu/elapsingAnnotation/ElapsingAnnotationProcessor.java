@@ -1,8 +1,6 @@
 package ru.vsu.elapsingAnnotation;
 
 import com.google.auto.service.AutoService;
-import com.sun.codemodel.internal.JClass;
-import com.sun.source.tree.CompilationUnitTree;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.model.JavacElements;
@@ -36,6 +34,7 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
     private JavacProcessingEnvironment javacProcessingEnvironment;
     private TreeMaker treeMaker;
     private Messager messager;
+    private ElapsingConfig elapsingConfig;
 
     /**
      * initialises variables for annotation processing
@@ -138,13 +137,13 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
                 Elapsing elapsingAnnotation = method.getAnnotation(Elapsing.class);
 
                 if (elapsingAnnotation != null) {
-
+                   messager.printMessage(Diagnostic.Kind.ERROR, elapsingAnnotation.messageFormat());
 
                     if (elapsingAnnotation.maxElapsed() <= 0) {
                         messager.printMessage(Diagnostic.Kind.ERROR, "@Elapsed: parameter maxElapsed must be greater than 0");
                     }
 
-                    if (!elapsingAnnotation.format().contains("%s")) {
+                    if (!elapsingAnnotation.messageFormat().contains("%s")) {
                         messager.printMessage(Diagnostic.Kind.WARNING, "@Elapsed: parameter format should contain '%s' otherwise elapsed time will not be logged");
                     }
 
@@ -156,36 +155,37 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
                         // new method body
                         List<JCStatement> newStatements = List.nil();
 
-                        //add start and finish time to the beginning of the method
-                        JCVariableDecl timeStartVarDecl = makeTimeVar(
-                                treeMaker, utils, "start", treeMaker.Modifiers(Flags.FINAL),
-                                makeCurrentTime(treeMaker, utils, elapsingAnnotation));
-                        newStatements = newStatements.append(timeStartVarDecl);
-
-                        JCVariableDecl timeFinishVarDecl = makeTimeVar(treeMaker, utils, "finish", treeMaker.Modifiers(0),
-                                treeMaker.Literal(0));
-                        newStatements = newStatements.append(timeFinishVarDecl);
-
-                        // create try block
-                        List<JCStatement> tryBlock = List.nil();
-
-                        //append try block with method statements
-                        for (JCStatement statement : methodStatements) {
-                            tryBlock = tryBlock.append(statement);
-                        }
-
-                        //save finish time
-                        tryBlock = tryBlock.append(treeMaker.Exec(treeMaker.Assign(
-                                treeMaker.Ident(utils.getName(timeFinishVarDecl.name)), makeCurrentTime(treeMaker, utils, elapsingAnnotation))));
-
-                        // create finally block, append with time logging
-                        JCBlock finallyBlock = makeLogBlock(treeMaker, utils, elapsingAnnotation, timeStartVarDecl, timeFinishVarDecl);
-
-                        //add try-finally block to newStatements
-                        newStatements = newStatements.append(treeMaker.Try(treeMaker.Block(0, tryBlock), List.nil(), finallyBlock));
-
-                        // save replace method body with new statements
-                        ((JCMethodDecl) methodDeclNode).body.stats = newStatements;
+//                        defineElapsingParams();
+//                        //add start and finish time to the beginning of the method
+//                        JCVariableDecl timeStartVarDecl = makeTimeVar(
+//                                treeMaker, utils, "start", treeMaker.Modifiers(Flags.FINAL),
+//                                makeCurrentTime(treeMaker, utils));
+//                        newStatements = newStatements.append(timeStartVarDecl);
+//
+//                        JCVariableDecl timeFinishVarDecl = makeTimeVar(treeMaker, utils, "finish", treeMaker.Modifiers(0),
+//                                treeMaker.Literal(0));
+//                        newStatements = newStatements.append(timeFinishVarDecl);
+//
+//                        // create try block
+//                        List<JCStatement> tryBlock = List.nil();
+//
+//                        //append try block with method statements
+//                        for (JCStatement statement : methodStatements) {
+//                            tryBlock = tryBlock.append(statement);
+//                        }
+//
+//                        //save finish time
+//                        tryBlock = tryBlock.append(treeMaker.Exec(treeMaker.Assign(
+//                                treeMaker.Ident(utils.getName(timeFinishVarDecl.name)), makeCurrentTime(treeMaker, utils))));
+//
+//                        // create finally block, append with time logging
+//                        JCBlock finallyBlock = makeLogBlock(treeMaker, utils, timeStartVarDecl, timeFinishVarDecl);
+//
+//                        //add try-finally block to newStatements
+//                        newStatements = newStatements.append(treeMaker.Try(treeMaker.Block(0, tryBlock), List.nil(), finallyBlock));
+//
+//                        // save replace method body with new statements
+//                        ((JCMethodDecl) methodDeclNode).body.stats = newStatements;
                     }
                 }
             }
@@ -194,136 +194,148 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         return false;
     }
 
-    /**
-     * @param maker    treeMaker
-     * @param utils    javacElements
-     * @param elapsing @Elapsing annotation
-     * @return System.nanoTime() or System.currentTimeMillis() expression
-     */
-    private JCExpression makeCurrentTime(TreeMaker maker, JavacElements utils, Elapsing elapsing) {
-        // create System.nanoTime or System.currentTimeMillis call
-        JCExpression timeCallExpression = maker.Ident(utils.getName("System"));
-        String methodName;
-        switch (elapsing.interval()) {
-            case NANOSECOND:
-                methodName = "nanoTime";
-                break;
-            default:
-                methodName = "currentTimeMillis";
-                break;
-        }
-        timeCallExpression = maker.Select(timeCallExpression, utils.getName(methodName));
-        return maker.Apply(List.nil(), timeCallExpression, List.nil());
-    }
 
-
-    /**
-     * creates time variable declaration and initialisation
-     *
-     * @param maker     treeMaket
-     * @param utils     javacElements
-     * @param name      time varible name
-     * @param modifiers variable modifiers
-     * @param value     variable initial value
-     * @return time variable declaration, eg final long time_start_1615004237="[value]";
-     */
-    private JCVariableDecl makeTimeVar(TreeMaker maker, JavacElements utils,
-                                       String name, JCModifiers modifiers, JCExpression value) {
-        //create new time variable definition
-        String fieldName = "time_" + name + "_" + System.currentTimeMillis();
-        return maker.VarDef(modifiers, utils.getName(fieldName), maker.TypeIdent(TypeTag.LONG), value);
-    }
-
-
-    /**
-     * creates log statement
-     *
-     * @param maker      treeMaker
-     * @param utils      javacElements
-     * @param level      logging level
-     * @param loggedText text that will be logged
-     * @return logging expression, eg Logger.getGlobal().log(level, loggedText));
-     */
-    private JCExpressionStatement logElapsed(TreeMaker maker, JavacElements utils, String level, JCExpression loggedText, Class loggerClass) {
-        //Logger.getGlobal().log(Level.INFO, String.format(FORMAT, ELAPSED_TIME));
-        //Logger.getGlobal().log(level, loggedText);
-        //Logger.getGlobal().log
-       // JCExpression getLoggerExpression = maker.Ident(utils.getName(loggerClass.getSimpleName()));
-//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("util"));
-//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("logging"));
-//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("Logger"));
-//        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("getGlobal"));
-        JCExpression getLogger = maker.Ident(utils.getName(loggerClass.getSimpleName()));
+//    private void defineElapsingParams(Elapsing elapsingAnnotation){
+////        if (elapsingAnnotation.messageFormat()==null){
+////            elapsingAnnotation.messageFormat()
+////        }
 //
-               // maker.Apply(List.nil(), getLoggerExpression, List.nil());
-        getLogger = maker.Select(getLogger, utils.getName("log"));
-
-        //Level.INFO
-        JCExpression levelExpression = maker.Ident(utils.getName("java"));
-        levelExpression = maker.Select(levelExpression, utils.getName("util"));
-        levelExpression = maker.Select(levelExpression, utils.getName("logging"));
-        levelExpression = maker.Select(levelExpression, utils.getName("Level"));
-        levelExpression = maker.Select(levelExpression, utils.getName(level));
-
-        List<JCExpression> logArgs = List.nil();
-        logArgs = logArgs.append(levelExpression);
-        logArgs = logArgs.append(loggedText);
-
-
-        JCExpression logExpression = maker.Apply(List.nil(), getLogger, logArgs);
-        return maker.Exec(logExpression);
-    }
-
-    /**
-     * creates block of statements tht logs time
-     *
-     * @param maker         treeMaker
-     * @param utils         javacElements
-     * @param elapsing      @Elapsing
-     * @param timeStartVar  start time variable declaration
-     * @param timeFinishVar finish time variable declaration
-     * @return block of statements tht logs time
-     */
-    private JCBlock makeLogBlock(TreeMaker maker, JavacElements utils, Elapsing elapsing, JCVariableDecl timeStartVar, JCVariableDecl timeFinishVar) {
-//messager.printMessage(Diagnostic.Kind.ERROR, elapsing.logger().getSimpleName());
-        List<JCStatement> statements = List.nil();
-
-        //log elapsed time
-
-        // String.format(FORMAT, ELAPSED_TIME)
-        JCExpression elapsedTime = maker.Binary(Tag.MINUS, maker.Ident(utils.getName(timeFinishVar.name)), maker.Ident(timeStartVar.name));
-
-        JCExpression formatExpression = maker.Ident(utils.getName("String"));
-        formatExpression = maker.Select(formatExpression, utils.getName("format"));
-
-        List<JCExpression> formatArgs = List.nil();
-        formatArgs = formatArgs.append(maker.Literal(elapsing.format())); //format
-        formatArgs = formatArgs.append(elapsedTime); //ELAPSED_TIME
-
-        JCExpression format = maker.Apply(List.nil(), formatExpression, formatArgs);
-
-        JCExpressionStatement logElapsedTime = logElapsed(maker, utils, Level.INFO.getName().toUpperCase(), format, elapsing.logger());
-        statements = statements.append(logElapsedTime);
-
-            //log delta elapsed if method elapsed more than said
-            JCExpression condition = maker.Binary(
-                    Tag.GT, //greater
-                    maker.Binary(Tag.MINUS, makeCurrentTime(maker, utils, elapsing), maker.Ident(timeStartVar.name)),//currTime-startTime=elapsed
-                    maker.Literal(elapsing.maxElapsed())); //maxElapsed
-
-            JCStatement ifStatement = maker.If(
-                    condition,
-                    //then
-                    logElapsed(maker, utils, Level.WARNING.getName().toUpperCase(),
-                            //loggedText
-                            maker.Binary(Tag.PLUS,
-                                    maker.Binary(Tag.PLUS, maker.Literal("Elapsed "),
-                                            maker.Binary(Tag.MINUS, elapsedTime, maker.Literal(elapsing.maxElapsed()))),
-                                    maker.Literal(" " + elapsing.interval().name().toLowerCase() + "s more")),
-                            elapsing.logger()),
-                    /*else*/ null);
-
-            statements = statements.append(ifStatement);
-        return maker.Block(0, statements);
-    }
+//    }
+//
+//    /**
+//     * @param maker    treeMaker
+//     * @param utils    javacElements
+//     * @param elapsing @Elapsing annotation
+//     * @return System.nanoTime() or System.currentTimeMillis() expression
+//     */
+//    private JCExpression makeCurrentTime(TreeMaker maker, JavacElements utils) {
+//        // create System.nanoTime or System.currentTimeMillis call
+//        JCExpression timeCallExpression = maker.Ident(utils.getName("System"));
+//        String methodName;
+//        switch (elapsing.timeUnit()) {
+//            case NANOSECOND:
+//                methodName = "nanoTime";
+//                break;
+//            default:
+//                methodName = "currentTimeMillis";
+//                break;
+//        }
+//        timeCallExpression = maker.Select(timeCallExpression, utils.getName(methodName));
+//        return maker.Apply(List.nil(), timeCallExpression, List.nil());
+//    }
+//
+//
+//    /**
+//     * creates time variable declaration and initialisation
+//     *
+//     * @param maker     treeMaket
+//     * @param utils     javacElements
+//     * @param name      time varible name
+//     * @param modifiers variable modifiers
+//     * @param value     variable initial value
+//     * @return time variable declaration, eg final long time_start_1615004237="[value]";
+//     */
+//    private JCVariableDecl makeTimeVar(TreeMaker maker, JavacElements utils,
+//                                       String name, JCModifiers modifiers, JCExpression value) {
+//        //create new time variable definition
+//        String fieldName = "time_" + name + "_" + System.currentTimeMillis();
+//        return maker.VarDef(modifiers, utils.getName(fieldName), maker.TypeIdent(TypeTag.LONG), value);
+//    }
+//
+//
+//    /**
+//     * creates log statement
+//     *
+//     * @param maker      treeMaker
+//     * @param utils      javacElements
+//     * @param level      logging level
+//     * @param loggedText text that will be logged
+//     * @return logging expression, eg Logger.getGlobal().log(level, loggedText));
+//     */
+//    private JCExpressionStatement logElapsed(TreeMaker maker, JavacElements utils,
+//                                             String level, JCExpression loggedText) {
+//        //Logger.getGlobal().log(Level.INFO, String.format(FORMAT, ELAPSED_TIME));
+//        //Logger.getGlobal().log(level, loggedText);
+//        //Logger.getGlobal().log
+//        // JCExpression getLoggerExpression = maker.Ident(utils.getName(loggerClass.getSimpleName()));
+////        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("util"));
+////        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("logging"));
+////        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("Logger"));
+////        getLoggerExpression = maker.Select(getLoggerExpression, utils.getName("getGlobal"));
+//       // ElapsingConfig.getInstance().getLogger()
+//        JCExpression getLoggerInstance = maker.Ident(utils.getName("ElapsingConfig"));
+//        getLoggerInstance=maker.Select(getLoggerInstance, utils.getName("getInstance"));
+//
+//        JCExpression getLoggerExpression = maker.Select(maker.Apply(List.nil(), getLoggerInstance, List.nil()),
+//                utils.getName("getLogger"));
+//        JCExpression logCallExpression = maker.Select(maker.Apply(List.nil(), getLoggerExpression, List.nil()),
+//                utils.getName("log"));
+//
+//        //Level.INFO
+//        JCExpression levelExpression = maker.Ident(utils.getName("java"));
+//        levelExpression = maker.Select(levelExpression, utils.getName("util"));
+//        levelExpression = maker.Select(levelExpression, utils.getName("logging"));
+//        levelExpression = maker.Select(levelExpression, utils.getName("Level"));
+//        levelExpression = maker.Select(levelExpression, utils.getName(level));
+//
+//        List<JCExpression> logArgs = List.nil();
+//        logArgs = logArgs.append(levelExpression);
+//        logArgs = logArgs.append(loggedText);
+//
+//
+//        JCExpression logExpression = maker.Apply(List.nil(), logCallExpression, logArgs);
+//        return maker.Exec(logExpression);
+//    }
+//
+//    /**
+//     * creates block of statements tht logs time
+//     *
+//     * @param maker         treeMaker
+//     * @param utils         javacElements
+//     * @param elapsing      @Elapsing
+//     * @param timeStartVar  start time variable declaration
+//     * @param timeFinishVar finish time variable declaration
+//     * @return block of statements tht logs time
+//     */
+//    private JCBlock makeLogBlock(TreeMaker maker, JavacElements utils, , JCVariableDecl timeStartVar, JCVariableDecl timeFinishVar) {
+//        //messager.printMessage(Diagnostic.Kind.ERROR, elapsing.logger().getSimpleName());
+//        List<JCStatement> statements = List.nil();
+//
+//        //log elapsed time
+//
+//        // String.format(FORMAT, ELAPSED_TIME)
+//        JCExpression elapsedTime = maker.Binary(Tag.MINUS, maker.Ident(utils.getName(timeFinishVar.name)), maker.Ident(timeStartVar.name));
+//
+//        JCExpression formatExpression = maker.Ident(utils.getName("String"));
+//        formatExpression = maker.Select(formatExpression, utils.getName("format"));
+//
+//        List<JCExpression> formatArgs = List.nil();
+//        formatArgs = formatArgs.append(maker.Literal(elapsing.messageFormat())); //format
+//        formatArgs = formatArgs.append(elapsedTime); //ELAPSED_TIME
+//
+//        JCExpression format = maker.Apply(List.nil(), formatExpression, formatArgs);
+//
+//
+//        JCExpressionStatement logElapsedTime = logElapsed(maker, utils, Level.INFO.getName().toUpperCase(), format);
+//        statements = statements.append(logElapsedTime);
+//        //----------------------------------------------------------------------------------------------------------------------------//
+//        //log delta elapsed if method elapsed more than said
+//        JCExpression condition = maker.Binary(
+//                Tag.GT, //greater
+//                maker.Binary(Tag.MINUS, makeCurrentTime(maker, utils, elapsing), maker.Ident(timeStartVar.name)),//currTime-startTime=elapsed
+//                maker.Literal(elapsing.maxElapsed())); //maxElapsed
+//
+//        formatArgs = List.nil();
+//        formatArgs = formatArgs.append(maker.Literal(elapsing.maxElapsedMessageFormat())); //format
+//        formatArgs = formatArgs.append(maker.Binary(Tag.MINUS, elapsedTime, maker.Literal(elapsing.maxElapsed()))); //ELAPSED_TIME-maxElapsed
+//        format = maker.Apply(List.nil(), formatExpression, formatArgs);
+//        JCStatement ifStatement = maker.If(
+//                condition,
+//                //then
+//                logElapsed(maker, utils, Level.WARNING.getName().toUpperCase(), format),
+//                /*else*/ null);
+//
+//        statements = statements.append(ifStatement);
+//        return maker.Block(0, statements);
+//    }
 }
