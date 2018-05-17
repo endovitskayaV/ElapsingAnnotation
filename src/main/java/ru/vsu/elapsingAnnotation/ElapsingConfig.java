@@ -1,74 +1,62 @@
 package ru.vsu.elapsingAnnotation;
 
 public class ElapsingConfig {
-    public void setInt(In){
+    private long maxElapsed;
+    private String messageFormat;
+    private String overtimeMessageFormat;
+    private Loggable loggable;
 
+    private static ElapsingConfig instance;
+
+    private ElapsingConfig() {
+        maxElapsed = Long.MAX_VALUE;
+        messageFormat = "%s";
+        overtimeMessageFormat = "%s";
+        loggable = new LoggableImpl();
     }
 
-//    private long maxElapsed;
-//    private TimeUnit interval;
-//    private String messageFormat;
-//    private String maxElapsedMessageFormat;
-//    private Logger logger = (Logger) LoggerImpl.getGlobal();
-//
-//    private static ElapsingConfig instance;
-//
-//    private ElapsingConfig() {
-//        long maxElapsed = Long.MAX_VALUE;
-//        TimeUnitEnum interval = TimeUnitEnum.MILLISECOND;
-//        String messageFormat = "%s";
-//        String maxElapsedMessageFormat = "%s";
-//    }
-//
-//    public static ElapsingConfig getInstance() {
-//        if (instance == null) {
-//            instance = new ElapsingConfig();
-//        }
-//        return instance;
-//    }
-//
-//    public ElapsingConfig setMaxElapsed(long maxElapsed) {
-//        this.maxElapsed = maxElapsed;
-//        return this;
-//    }
-//
-//    public ElapsingConfig setInterval(TimeUnit interval) {
-//        this.interval = interval;
-//        return this;
-//    }
-//
-//    public ElapsingConfig setMessageFormat(String messageFormat) {
-//        this.messageFormat = messageFormat;
-//        return this;
-//    }
-//
-//    public ElapsingConfig setMaxElapsedMessageFormat(String maxElapsedMessageFormat) {
-//        this.maxElapsedMessageFormat = maxElapsedMessageFormat;
-//        return this;
-//    }
-//
-//    public ElapsingConfig setLogger(Logger logger) {
-//        this.logger = logger;
-//        return this;
-//    }
-//
-//    public long getMaxElapsed() {
-//        return maxElapsed;
-//    }
-//
-//    public TimeUnit getInterval() {
-//        return interval;
-//    }
-//
-//    public String getMessageFormat() {
-//        return messageFormat;
-//    }
-//
-//    public String getMaxElapsedMessageFormat() {
-//        return maxElapsedMessageFormat;
-//    }
-//
-//    public Logger getLogger() {
-//        return logger;
-//    }
+    public static ElapsingConfig getInstance() {
+        if (instance == null) {
+            instance = new ElapsingConfig();
+        }
+        return instance;
+    }
+
+    public ElapsingConfig setMaxElapsed(long maxElapsed) {
+        if (maxElapsed <= 0) throw new IllegalArgumentException("Invalid maxElapsed");
+        this.maxElapsed = maxElapsed;
+        return this;
+    }
+
+
+    public ElapsingConfig setMessageFormat(String messageFormat) {
+        this.messageFormat = messageFormat;
+        return this;
+    }
+
+    public ElapsingConfig setOvertimeMessageFormat(String overtimeMessageFormat) {
+        this.overtimeMessageFormat = overtimeMessageFormat;
+        return this;
+    }
+
+    public ElapsingConfig setLoggable(Loggable loggable) {
+        this.loggable = loggable;
+        return this;
+    }
+
+    public long getMaxElapsed() {
+        return maxElapsed;
+    }
+
+    public String getMessageFormat() {
+        return messageFormat;
+    }
+
+    public String getOvertimeMessageFormat() {
+        return overtimeMessageFormat;
+    }
+
+    public Loggable getLoggable() {
+        return loggable;
+    }
 }
