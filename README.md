@@ -9,7 +9,7 @@ Enabling:
 For examle, in Intelij Idea File->Settings->Build,Execituion,Deployment->Annotation processors->Enable annotation processing
 
 2. a) For maven projects
-
+<!-- 
 <repositories>
         <repository>
             <id>elapsingAnnotation-mvn-repo</id>
@@ -20,6 +20,7 @@ For examle, in Intelij Idea File->Settings->Build,Execituion,Deployment->Annotat
             </snapshots>
         </repository>
     </repositories>
+    
     
     <dependencies>
         <dependency>
