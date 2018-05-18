@@ -8,8 +8,7 @@ Enabling:
 1. Enable annotation processing in IDE
 For examle, in Intelij Idea File->Settings->Build,Execituion,Deployment->Annotation processors->Enable annotation processing
 
-2.
-a) For maven projects
+2. a) For maven projects
 
 <repositories>
         <repository>
@@ -20,17 +19,16 @@ a) For maven projects
                 <updatePolicy>always</updatePolicy>
             </snapshots>
         </repository>
-          <!-- your other repositories -->
     </repositories>
-       <!--your other tags-->
+    
     <dependencies>
         <dependency>
             <groupId>ru.vsu</groupId>
             <artifactId>elapsingAnnotation</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
-           <!--your other dependencies-->
     </dependencies>
+
 
 b) For gradle projects: <br>
 repositories { <br>
