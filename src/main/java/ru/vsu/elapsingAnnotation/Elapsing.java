@@ -8,7 +8,6 @@ import java.lang.annotation.*;
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-@Documented
 public @interface Elapsing {
 
     String DEFAULT_MESSAGE = "DEFAULT_MESSAGE";

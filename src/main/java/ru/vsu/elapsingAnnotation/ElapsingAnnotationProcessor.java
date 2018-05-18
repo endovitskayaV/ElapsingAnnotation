@@ -34,6 +34,7 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
     private static final String ANNOTATION_TYPE = "ru.vsu.elapsingAnnotation.Elapsing";
     private JavacProcessingEnvironment javacProcessingEnvironment;
     private TreeMaker treeMaker;
+    private JavacElements utils;
     private Messager messager;
 
     /**
@@ -47,6 +48,7 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         this.javacProcessingEnvironment = (JavacProcessingEnvironment) processingEnv;
         this.treeMaker = TreeMaker.instance(javacProcessingEnvironment.getContext());
         this.messager = processingEnv.getMessager();
+        this.utils = javacProcessingEnvironment.getElementUtils();
     }
 
     /**
@@ -64,7 +66,6 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         }
 
         messager.printMessage(Diagnostic.Kind.WARNING, "here0");
-        JavacElements utils = javacProcessingEnvironment.getElementUtils();
         final Elements elements = javacProcessingEnvironment.getElementUtils();
         final TypeElement annotation = elements.getTypeElement(ANNOTATION_TYPE);
 
@@ -86,14 +87,10 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
                         List<JCStatement> newStatements = List.nil();
 
                         //add start and finish time to the beginning of the method
-                        JCVariableDecl timeStartVarDecl = makeTimeVar(treeMaker, utils,
-                                "start", treeMaker.Modifiers(Flags.FINAL),
-                                makeCurrentTime(treeMaker, utils));
+                        JCVariableDecl timeStartVarDecl = makeTimeVar("start", treeMaker.Modifiers(Flags.FINAL), makeCurrentTime());
                         newStatements = newStatements.append(timeStartVarDecl);
 
-                        JCVariableDecl timeFinishVarDecl = makeTimeVar(treeMaker, utils,
-                                "finish", treeMaker.Modifiers(0),
-                                makeCurrentTime(treeMaker, utils));
+                        JCVariableDecl timeFinishVarDecl = makeTimeVar("finish", treeMaker.Modifiers(0), makeCurrentTime());
                         newStatements = newStatements.append(timeFinishVarDecl);
 
                         // create try block
@@ -107,14 +104,17 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
                         //save finish time
                         tryBlock = tryBlock.append(treeMaker.Exec(treeMaker.Assign
                                 (treeMaker.Ident(utils.getName(timeFinishVarDecl.name)),
-                                makeCurrentTime(treeMaker, utils))));
+                                makeCurrentTime())));
 
                         // create finally block, append with time logging
                         JCBlock finallyBlock =
-                                makeLogBlock(treeMaker, utils, elapsingAnnotation,
+                                makeLogBlock(elapsingAnnotation,
                                         timeStartVarDecl, timeFinishVarDecl,
                                         method.getEnclosingElement().getSimpleName().toString(),
                                         method.getSimpleName().toString());
+
+                        messager.printMessage(Diagnostic.Kind.WARNING, method.getEnclosingElement().getSimpleName().toString());
+                        messager.printMessage(Diagnostic.Kind.WARNING,  method.getSimpleName().toString());
 
                        //add try-finally block to newStatements
                        newStatements = newStatements.append(treeMaker.Try
@@ -131,11 +131,9 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
     }
 
     /**
-     * @param treeMaker treeMaker
-     * @param utils     javacElements
      * @return System.nanoTime() or System.currentTimeMillis() expression
      */
-    private JCExpression makeCurrentTime(TreeMaker treeMaker, JavacElements utils) {
+    private JCExpression makeCurrentTime() {
         //create System.currentTimeMillis call
         JCExpression timeCallExpression = treeMaker.Ident(utils.getName("System"));
         timeCallExpression = treeMaker.Select(timeCallExpression, utils.getName("currentTimeMillis"));
@@ -146,15 +144,12 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
     /**
      * creates time variable declaration and initialisation
      *
-     * @param treeMaker treeMaket
-     * @param utils     javacElements
      * @param name      time varible name
      * @param modifiers variable modifiers
      * @param value     variable initial value
      * @return time variable declaration, eg final long time_start_1615004237="[value]";
      */
-    private JCVariableDecl makeTimeVar(TreeMaker treeMaker, JavacElements utils,
-                                       String name, JCModifiers modifiers, JCExpression value) {
+    private JCVariableDecl makeTimeVar(String name, JCModifiers modifiers, JCExpression value) {
         //create new time variable definition
         String fieldName = "time_" + name + "_" + System.currentTimeMillis();
         return treeMaker.VarDef(modifiers, utils.getName(fieldName), treeMaker.TypeIdent(TypeTag.LONG), value);
@@ -164,19 +159,16 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
     /**
      * creates log statement
      *
-     * @param treeMaker      treeMaker
-     * @param utils      javacElements
      * @param level      logging level
      * @param loggedText text that will be logged
      * @return logging expression, eg Loggable.getGlobal().log(level, loggedText));
      */
-    private JCExpressionStatement logElapsed(TreeMaker treeMaker, JavacElements utils, String level, String className, String methodName, JCExpression loggedText) {
-        //Loggable.getGlobal().log(level, loggedText);
+    private JCExpressionStatement logElapsed(String level, String className, String methodName, JCExpression loggedText) {
+        //Loggable.log(level, loggedText);
 
-        //Loggable.getGlobal().log
-        JCExpression getLoggerExpression = getElapsingConfigGetter(treeMaker, utils, "Loggable");
-        JCExpression logCallExpression = treeMaker.Select(treeMaker.Apply(List.nil(), getLoggerExpression, List.nil()),
-                utils.getName("log"));
+        //Loggable.log
+        JCExpression getLoggerExpression = getElapsingConfigGetter("Loggable");
+        JCExpression logCallExpression = treeMaker.Select(getLoggerExpression, utils.getName("log"));
 
         JCExpression levelExpression = treeMaker.Ident(utils.getName("java"));
         levelExpression = treeMaker.Select(levelExpression, utils.getName("util"));
@@ -186,8 +178,8 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 
         List<JCExpression> logArgs = List.nil();
         logArgs = logArgs.append(levelExpression);
-        logArgs=logArgs.append(treeMaker.Literal(utils.getName(className)));
-        logArgs=logArgs.append(treeMaker.Literal(utils.getName(methodName)));
+        logArgs=logArgs.append(treeMaker.Literal(className));
+        logArgs=logArgs.append(treeMaker.Literal(methodName));
         logArgs = logArgs.append(loggedText);
 
         JCExpression logExpression = treeMaker.Apply(List.nil(), logCallExpression, logArgs);
@@ -197,13 +189,11 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
     /**
      * creates block of statements tht logs time
      *
-     * @param treeMaker         treeMaker
-     * @param utils         javacElements
      * @param timeStartVar  start time variable declaration
      * @param timeFinishVar finish time variable declaration
      * @return block of statements tht logs time
      */
-    private JCBlock makeLogBlock(TreeMaker treeMaker, JavacElements utils, Elapsing elapsing, JCVariableDecl timeStartVar, JCVariableDecl timeFinishVar, String className, String methodName) {
+    private JCBlock makeLogBlock(Elapsing elapsing, JCVariableDecl timeStartVar, JCVariableDecl timeFinishVar, String className, String methodName) {
         List<JCStatement> statements = List.nil();
 
         //log elapsed time
@@ -223,14 +213,13 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         if (elapsing.customParams() && !elapsing.messageFormat().equals(Elapsing.DEFAULT_MESSAGE)) {
             formatArgs = formatArgs.append(treeMaker.Literal(elapsing.messageFormat())); //format
         } else {
-            formatArgs = formatArgs.append(treeMaker.Apply(List.nil(),
-                    getElapsingConfigGetter(treeMaker, utils, "MessageFormat"), List.nil()));
+            formatArgs = formatArgs.append(getElapsingConfigGetter("MessageFormat"));
         }
         formatArgs = formatArgs.append(elapsedTime); //ELAPSED_TIME
         JCExpression format = treeMaker.Apply(List.nil(), formatExpression, formatArgs);
 
 
-        JCExpressionStatement logElapsedTime = logElapsed(treeMaker, utils, Level.INFO.getName().toUpperCase(),className, methodName, format);
+        JCExpressionStatement logElapsedTime = logElapsed(Level.INFO.getName().toUpperCase(),className, methodName, format);
         statements = statements.append(logElapsedTime);
         //----------------------------------------------------------------------------------------------------------------------------//
 
@@ -240,19 +229,19 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         if (elapsing.customParams() && elapsing.maxElapsed()!=0) {
             maxElapsedExpression = treeMaker.Literal(elapsing.maxElapsed()); //format
         } else {
-            maxElapsedExpression =getElapsingConfigGetter(treeMaker, utils, "MaxElapsed");
+            maxElapsedExpression =getElapsingConfigGetter("MaxElapsed");
         }
 
         JCExpression overtimeMessageFormatExpression;
         if (elapsing.customParams() && !elapsing.overtimeMessageFormat().equals(Elapsing.DEFAULT_MESSAGE)) {
             overtimeMessageFormatExpression= treeMaker.Literal(elapsing.overtimeMessageFormat()); //format
         } else {
-            overtimeMessageFormatExpression =getElapsingConfigGetter(treeMaker, utils, "OvertimeMessageFormat");
+            overtimeMessageFormatExpression =getElapsingConfigGetter( "OvertimeMessageFormat");
         }
 
         JCExpression condition = treeMaker.Binary(
                 Tag.GT, //greater
-                treeMaker.Binary(Tag.MINUS, makeCurrentTime(treeMaker, utils), treeMaker.Ident(timeStartVar.name)),//currTime-startTime=elapsed
+                treeMaker.Binary(Tag.MINUS, makeCurrentTime(), treeMaker.Ident(timeStartVar.name)),//currTime-startTime=elapsed
                 maxElapsedExpression); //maxElapsed
 
         formatArgs = List.nil();
@@ -262,22 +251,22 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         JCStatement ifStatement = treeMaker.If(
                 condition,
                 //then
-                logElapsed(treeMaker, utils, Level.WARNING.getName().toUpperCase(),className,methodName, format),
+                logElapsed(Level.WARNING.getName().toUpperCase(),className,methodName, format),
                 /*else*/ null);
 
         statements = statements.append(ifStatement);
         return treeMaker.Block(0, statements);
     }
 
-    private JCExpression getElapsingConfigGetter(TreeMaker maker, JavacElements utils, String getterName) {
-        JCExpression expression = maker.Ident(utils.getName("ru"));
-        expression = maker.Select(expression, utils.getName("vsu"));
-        expression = maker.Select(expression, utils.getName("elapsingAnnotation"));
-        expression = maker.Select(expression, utils.getName("ElapsingConfig"));
-        expression = maker.Select(expression, utils.getName("getInstance"));
-        expression = maker.Apply(List.nil(), expression, List.nil());
-        expression = maker.Select(expression, utils.getName("get" + getterName));
-        return maker.Apply(List.nil(), expression, List.nil());
+    private JCExpression getElapsingConfigGetter(String getterName) {
+        JCExpression expression = treeMaker.Ident(utils.getName("ru"));
+        expression = treeMaker.Select(expression, utils.getName("vsu"));
+        expression = treeMaker.Select(expression, utils.getName("elapsingAnnotation"));
+        expression = treeMaker.Select(expression, utils.getName("ElapsingConfig"));
+        expression = treeMaker.Select(expression, utils.getName("getInstance"));
+        expression = treeMaker.Apply(List.nil(), expression, List.nil());
+        expression = treeMaker.Select(expression, utils.getName("get" + getterName));
+        return treeMaker.Apply(List.nil(), expression, List.nil());
     }
 
 
