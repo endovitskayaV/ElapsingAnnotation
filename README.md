@@ -10,6 +10,7 @@ For examle, in Intelij Idea File->Settings->Build,Execituion,Deployment->Annotat
 
 2.
 a) For maven projects
+
 <repositories>
         <repository>
             <id>elapsingAnnotation-mvn-repo</id>
@@ -19,21 +20,16 @@ a) For maven projects
                 <updatePolicy>always</updatePolicy>
             </snapshots>
         </repository>
-    
-     <!--your other repositories-->
-     
+          <!-- your other repositories -->
     </repositories>
-
-
+       <!--your other tags-->
     <dependencies>
         <dependency>
             <groupId>ru.vsu</groupId>
             <artifactId>elapsingAnnotation</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
-
-       <!--your other dependencies-->
-       
+           <!--your other dependencies-->
     </dependencies>
 
 b) For gradle projects: <br>
