@@ -76,12 +76,32 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 
                 if (elapsingAnnotation != null) {
 
+                    if (!elapsingAnnotation.messageFormat().contains("%s")) {
+                        messager.printMessage(Diagnostic.Kind.WARNING, "Param messageFormat should contain '%s' otherwise time will not be logged");
+
+                    }
+                    if (!elapsingAnnotation.overtimeMessageFormat().contains("%s")) {
+                        messager.printMessage(Diagnostic.Kind.WARNING, "Param overtimeMessageFormat should contain '%s' otherwise time will not be logged");
+
+                    }
+                    if (elapsingAnnotation.maxElapsed()<0) {
+                        messager.printMessage(Diagnostic.Kind.ERROR, "Invalid maxElapsed param: must not be negative");
+
+                    }
+                  //  messager.printMessage(Diagnostic.Kind.WARNING, String.valueOf(elapsingAnnotation.maxElapsed()));
+
+
+//                    if (elapsingAnnotation.maxElapsed()<0) {
+//                        messager.printMessage(Diagnostic.Kind.ERROR, "Invalid maxElapsed param: must not be negative");
+//
+//                    }
+
                     JCTree methodDeclNode = utils.getTree(method);
                     if (methodDeclNode instanceof JCMethodDecl) {
                         messager.printMessage(Diagnostic.Kind.WARNING, "here");
 
                         // get method statements
-                       final List<JCStatement> methodStatements = ((JCMethodDecl) methodDeclNode).body.stats;
+                        final List<JCStatement> methodStatements = ((JCMethodDecl) methodDeclNode).body.stats;
 
                         // new method body
                         List<JCStatement> newStatements = List.nil();
@@ -104,7 +124,7 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
                         //save finish time
                         tryBlock = tryBlock.append(treeMaker.Exec(treeMaker.Assign
                                 (treeMaker.Ident(utils.getName(timeFinishVarDecl.name)),
-                                makeCurrentTime())));
+                                        makeCurrentTime())));
 
                         // create finally block, append with time logging
                         JCBlock finallyBlock =
@@ -114,14 +134,14 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
                                         method.getSimpleName().toString());
 
                         messager.printMessage(Diagnostic.Kind.WARNING, method.getEnclosingElement().getSimpleName().toString());
-                        messager.printMessage(Diagnostic.Kind.WARNING,  method.getSimpleName().toString());
+                        messager.printMessage(Diagnostic.Kind.WARNING, method.getSimpleName().toString());
 
-                       //add try-finally block to newStatements
-                       newStatements = newStatements.append(treeMaker.Try
-                               (treeMaker.Block(0, tryBlock), List.nil(), finallyBlock));
+                        //add try-finally block to newStatements
+                        newStatements = newStatements.append(treeMaker.Try
+                                (treeMaker.Block(0, tryBlock), List.nil(), finallyBlock));
 
                         // save replace method body with new statements
-                       ((JCMethodDecl) methodDeclNode).body.stats = newStatements;
+                        ((JCMethodDecl) methodDeclNode).body.stats = newStatements;
                     }
                 }
             }
@@ -178,8 +198,8 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 
         List<JCExpression> logArgs = List.nil();
         logArgs = logArgs.append(levelExpression);
-        logArgs=logArgs.append(treeMaker.Literal(className));
-        logArgs=logArgs.append(treeMaker.Literal(methodName));
+        logArgs = logArgs.append(treeMaker.Literal(className));
+        logArgs = logArgs.append(treeMaker.Literal(methodName));
         logArgs = logArgs.append(loggedText);
 
         JCExpression logExpression = treeMaker.Apply(List.nil(), logCallExpression, logArgs);
@@ -219,24 +239,24 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         JCExpression format = treeMaker.Apply(List.nil(), formatExpression, formatArgs);
 
 
-        JCExpressionStatement logElapsedTime = logElapsed(Level.INFO.getName().toUpperCase(),className, methodName, format);
+        JCExpressionStatement logElapsedTime = logElapsed(Level.INFO.getName().toUpperCase(), className, methodName, format);
         statements = statements.append(logElapsedTime);
         //----------------------------------------------------------------------------------------------------------------------------//
 
         //log delta elapsed if method elapsed more than said
 
         JCExpression maxElapsedExpression;
-        if (elapsing.customParams() && elapsing.maxElapsed()!=0) {
+        if (elapsing.customParams() && elapsing.maxElapsed() != 0) {
             maxElapsedExpression = treeMaker.Literal(elapsing.maxElapsed()); //format
         } else {
-            maxElapsedExpression =getElapsingConfigGetter("MaxElapsed");
+            maxElapsedExpression = getElapsingConfigGetter("MaxElapsed");
         }
 
         JCExpression overtimeMessageFormatExpression;
         if (elapsing.customParams() && !elapsing.overtimeMessageFormat().equals(Elapsing.DEFAULT_MESSAGE)) {
-            overtimeMessageFormatExpression= treeMaker.Literal(elapsing.overtimeMessageFormat()); //format
+            overtimeMessageFormatExpression = treeMaker.Literal(elapsing.overtimeMessageFormat()); //format
         } else {
-            overtimeMessageFormatExpression =getElapsingConfigGetter( "OvertimeMessageFormat");
+            overtimeMessageFormatExpression = getElapsingConfigGetter("OvertimeMessageFormat");
         }
 
         JCExpression condition = treeMaker.Binary(
@@ -251,7 +271,7 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         JCStatement ifStatement = treeMaker.If(
                 condition,
                 //then
-                logElapsed(Level.WARNING.getName().toUpperCase(),className,methodName, format),
+                logElapsed(Level.WARNING.getName().toUpperCase(), className, methodName, format),
                 /*else*/ null);
 
         statements = statements.append(ifStatement);
