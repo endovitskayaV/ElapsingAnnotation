@@ -65,7 +65,6 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
             return false;
         }
 
-        messager.printMessage(Diagnostic.Kind.WARNING, "here0");
         final Elements elements = javacProcessingEnvironment.getElementUtils();
         final TypeElement annotation = elements.getTypeElement(ANNOTATION_TYPE);
 
@@ -76,30 +75,10 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 
                 if (elapsingAnnotation != null) {
 
-                    if (!elapsingAnnotation.messageFormat().contains("%s")) {
-                        messager.printMessage(Diagnostic.Kind.WARNING, "Param messageFormat should contain '%s' otherwise time will not be logged");
-
-                    }
-                    if (!elapsingAnnotation.overtimeMessageFormat().contains("%s")) {
-                        messager.printMessage(Diagnostic.Kind.WARNING, "Param overtimeMessageFormat should contain '%s' otherwise time will not be logged");
-
-                    }
-                    if (elapsingAnnotation.maxElapsed()<0) {
-                        messager.printMessage(Diagnostic.Kind.ERROR, "Invalid maxElapsed param: must not be negative");
-
-                    }
-                  //  messager.printMessage(Diagnostic.Kind.WARNING, String.valueOf(elapsingAnnotation.maxElapsed()));
-
-
-//                    if (elapsingAnnotation.maxElapsed()<0) {
-//                        messager.printMessage(Diagnostic.Kind.ERROR, "Invalid maxElapsed param: must not be negative");
-//
-//                    }
+                    validAttributes(elapsingAnnotation);
 
                     JCTree methodDeclNode = utils.getTree(method);
                     if (methodDeclNode instanceof JCMethodDecl) {
-                        messager.printMessage(Diagnostic.Kind.WARNING, "here");
-
                         // get method statements
                         final List<JCStatement> methodStatements = ((JCMethodDecl) methodDeclNode).body.stats;
 
@@ -133,9 +112,6 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
                                         method.getEnclosingElement().getSimpleName().toString(),
                                         method.getSimpleName().toString());
 
-                        messager.printMessage(Diagnostic.Kind.WARNING, method.getEnclosingElement().getSimpleName().toString());
-                        messager.printMessage(Diagnostic.Kind.WARNING, method.getSimpleName().toString());
-
                         //add try-finally block to newStatements
                         newStatements = newStatements.append(treeMaker.Try
                                 (treeMaker.Block(0, tryBlock), List.nil(), finallyBlock));
@@ -148,6 +124,26 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
             return true;
         }
         return false;
+    }
+
+    /**
+     * validates annotation attributes
+     *
+     * @param elapsingAnnotation @Elapsing
+     */
+    private void validAttributes(Elapsing elapsingAnnotation) {
+        if (!elapsingAnnotation.messageFormat().equals(Elapsing.DEFAULT_MESSAGE) && !elapsingAnnotation.messageFormat().contains("%s")) {
+            messager.printMessage(Diagnostic.Kind.WARNING, "Param messageFormat should contain '%s' otherwise time will not be logged");
+
+        }
+        if (!elapsingAnnotation.overtimeMessageFormat().equals(Elapsing.DEFAULT_MESSAGE) && !elapsingAnnotation.overtimeMessageFormat().contains("%s")) {
+            messager.printMessage(Diagnostic.Kind.WARNING, "Param overtimeMessageFormat should contain '%s' otherwise time will not be logged");
+
+        }
+        if (elapsingAnnotation.maxElapsed() < 0) {
+            messager.printMessage(Diagnostic.Kind.ERROR, "Invalid maxElapsed param: must not be negative");
+
+        }
     }
 
     /**
@@ -230,7 +226,7 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
 
         List<JCExpression> formatArgs = List.nil();
 
-        if (elapsing.customParams() && !elapsing.messageFormat().equals(Elapsing.DEFAULT_MESSAGE)) {
+        if (!elapsing.messageFormat().equals(Elapsing.DEFAULT_MESSAGE)) {
             formatArgs = formatArgs.append(treeMaker.Literal(elapsing.messageFormat())); //format
         } else {
             formatArgs = formatArgs.append(getElapsingConfigGetter("MessageFormat"));
@@ -246,14 +242,14 @@ public class ElapsingAnnotationProcessor extends AbstractProcessor {
         //log delta elapsed if method elapsed more than said
 
         JCExpression maxElapsedExpression;
-        if (elapsing.customParams() && elapsing.maxElapsed() != 0) {
+        if (elapsing.maxElapsed() != 0) {
             maxElapsedExpression = treeMaker.Literal(elapsing.maxElapsed()); //format
         } else {
             maxElapsedExpression = getElapsingConfigGetter("MaxElapsed");
         }
 
         JCExpression overtimeMessageFormatExpression;
-        if (elapsing.customParams() && !elapsing.overtimeMessageFormat().equals(Elapsing.DEFAULT_MESSAGE)) {
+        if (!elapsing.overtimeMessageFormat().equals(Elapsing.DEFAULT_MESSAGE)) {
             overtimeMessageFormatExpression = treeMaker.Literal(elapsing.overtimeMessageFormat()); //format
         } else {
             overtimeMessageFormatExpression = getElapsingConfigGetter("OvertimeMessageFormat");
