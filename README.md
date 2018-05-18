@@ -11,18 +11,18 @@ For examle, in Intelij Idea File->Settings->Build,Execituion,Deployment->Annotat
 2.
 a) For maven projects
 <repositories>
-+        <repository>
-+            <id>elapsingAnnotation-mvn-repo</id>
-+            <url>https://raw.github.com/endovitskayaV/elapsingAnnotation/mvn-repo/</url>
-+            <snapshots>
-+                <enabled>true</enabled>
-+                <updatePolicy>always</updatePolicy>
-+            </snapshots>
-+        </repository>
-     
+        <repository>
+            <id>elapsingAnnotation-mvn-repo</id>
+            <url>https://raw.github.com/endovitskayaV/elapsingAnnotation/mvn-repo/</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    
      <!--your other repositories-->
      
-+    </repositories>
+    </repositories>
 
 
     <dependencies>
@@ -36,19 +36,20 @@ a) For maven projects
        
     </dependencies>
 
-b) For gradle projects:
-repositories {
-    maven{
-        url 'https://raw.github.com/endovitskayaV/elapsingAnnotation/mvn-repo/'
-    }
-     //your other repositories
-}
+b) For gradle projects: <br>
+repositories { <br>
+    maven{ <br>
+        url 'https://raw.github.com/endovitskayaV/elapsingAnnotation/mvn-repo/' <br>
+    } <br>
+     //your other repositories <br>
+} <br>
 
-dependencies {
-    compile group: 'ru.vsu', name: 'elapsingAnnotation', version:'1.0-SNAPSHOT'
-    //your other dependencies
-}
+dependencies { <br>
+    compile group: 'ru.vsu', name: 'elapsingAnnotation', version:'1.0-SNAPSHOT' <br>
+    //your other dependencies <br>
+} <br>
 
-c) For other projects dowload https://github.com/endovitskayaV/elapsingAnnotation/blob/master/elapsingAnnotation-1.0-SNAPSHOT-jar-with-dependencies.jar
-and include in project classpath
+c) For other projects dowload  <br>
+https://github.com/endovitskayaV/elapsingAnnotation/blob/master/elapsingAnnotation-1.0-SNAPSHOT-jar-with-dependencies.jar  <br>
+and include in project classpath  <br>
 
