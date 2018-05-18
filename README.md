@@ -29,7 +29,7 @@ For examle, in Intelij Idea File->Settings->Build,Execituion,Deployment->Annotat
             <version>1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
-
+-->
 
 b) For gradle projects: <br>
 repositories { <br>
